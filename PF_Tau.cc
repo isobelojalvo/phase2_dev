@@ -3,7 +3,7 @@
 void file_read_in(
 		track_t central_tracks[N_TRACKS],  // Number of tracks
 		cluster_t central_clusters[N_CLUSTERS],  // Number of Clusters
-		algo_config_t algo_config,           // algoritm configuration
+		algo_config_t algo_config,           // algorithm configuration
 		algo_outputs_t & algo_outputs        // algorithm outputs
 		)
 {
@@ -21,7 +21,7 @@ void file_read_in(
 
 	////////////////////Three Prong Tau Algorithm////////////////////
 	pftau_t tau_cands[12];
-	tau_alg( charged_cands, neutral_clusters, algo_config, tau_cands);
+	tau_alg( charged_cands, central_clusters, algo_config, tau_cands);
 
 	////////////////////    Algorithm Outputs    ////////////////////
 	//algo_outputs.three_prong_tau_et = three_prong_tau_cand[0].et + three_prong_tau_cand[1].et + three_prong_tau_cand[2].et;
@@ -49,9 +49,9 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS],
 	    charged_cands[jdx].eta      = central_tracks[jdx].eta;
 	    charged_cands[jdx].phi      = central_tracks[jdx].phi;
 	    charged_cands[jdx].eta_side = central_tracks[jdx].eta_side;
-	    int index = 0;
+	    ap_uint<12> index = 0;
 	    
-	    index = find_the_index_crys( charged_cands.eta, charged_cands.eta_side, charged_cands.phi);
+	    index = find_the_index_crys( charged_cands[jdx].eta, charged_cands[jdx].eta_side, charged_cands[jdx].phi);
 	    
 	    // Take the Cluster and use H/E and E/H to determine if Hadron or electron/pi0
 	    if( central_clusters[index].EoH > algo_config.input_EoH_cut ){
@@ -246,10 +246,10 @@ void tau_alg(pf_charged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_c
 	}
 	//Process the strips in a separate module
 
-	for(ap_unt<4> i = 0; i < n_taus ; i++){
+	for(ap_uint<4> i = 0; i < n_taus ; i++){
 	  if(tau_cands[i].tau_type == 10 || tau_cands[i].et == 0)
 	    continue;
-	  strip_alg(tau_cand[i], electron_grid[i], neutral_clusters, algo_config);
+	  strip_alg(tau_cands[i], electron_grid[i], neutral_clusters, algo_config);
 	}
 	//FINISH ISOLATION CALCULATION
 
@@ -265,8 +265,8 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t 
 
     // Create Grid of 5x5 neutral Clusters
 //IMPLEMENT ME
-    ap_uint<12> index_mm  = find_the_index_crys_offset(tau_eta, tau_phi,  0, 0);
-    ap_uint<12> index_m   = find_the_index_crys_offset(tau_eta, tau_phi,  1, 0);
+    ap_uint<12> index_mm  = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  0, 0);
+    ap_uint<12> index_m   = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  1, 0);
     ap_uint<12> index_cen = find_the_index_crys_offset(tau_eta, tau_phi,  2, 0);
     ap_uint<12> index_p   = find_the_index_crys_offset(tau_eta, tau_phi,  3, 0);
     ap_uint<12> index_pp  = find_the_index_crys_offset(tau_eta, tau_phi,  4, 0);
