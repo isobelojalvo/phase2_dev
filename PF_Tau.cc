@@ -267,9 +267,9 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t 
 //IMPLEMENT ME
     ap_uint<12> index_mm  = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  0, 0);
     ap_uint<12> index_m   = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  1, 0);
-    ap_uint<12> index_cen = find_the_index_crys_offset(tau_eta, tau_phi,  2, 0);
-    ap_uint<12> index_p   = find_the_index_crys_offset(tau_eta, tau_phi,  3, 0);
-    ap_uint<12> index_pp  = find_the_index_crys_offset(tau_eta, tau_phi,  4, 0);
+    ap_uint<12> index_cen = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  2, 0);
+    ap_uint<12> index_p   = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  3, 0);
+    ap_uint<12> index_pp  = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  4, 0);
 
     //needs tower eta and tower phi, as well as pt, eta, phi
     strip_t temp_strip[5];    
