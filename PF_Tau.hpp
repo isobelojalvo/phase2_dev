@@ -107,7 +107,13 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t 
 
 void tau_alg(pf_charged_t charged_cands[N_TRACKS], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
 
+ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+
 ap_uint<7> weighted_avg_phi(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 
-ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+ap_uint<7> weighted_avg_eta(pf_cand_t strip1, strip_t strip2);
+
+ap_uint<7> weighted_avg_phi(pf_cand_t strip1, strip_t strip2);
+
+void Check_And_Merge_Strip(cluster_t cluster_1, cluster_t cluster_2, strip_t strip, algo_config_t algo_config);
 #endif

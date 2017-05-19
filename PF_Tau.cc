@@ -51,7 +51,6 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS],
 	    charged_cands[jdx].eta_side = central_tracks[jdx].eta_side;
 	    int index = 0;
 	    
-	    //implement me
 	    index = find_the_index_crys( charged_cands.eta, charged_cands.eta_side, charged_cands.phi);
 	    
 	    // Take the Cluster and use H/E and E/H to determine if Hadron or electron/pi0
@@ -100,6 +99,43 @@ ap_uint<12> find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8>
                 eta = eta/5;
                 phi = phi/5;
                 //temporary caution while code is integrated
+                //the max number of towers is 20... put this in a define
+                ap_uint<12> index;
+		if(eta > 20)
+		  return 0;
+
+		if(eta == 0 && phi == 0)
+		  return N_CLUSTERS-1;
+
+		if(eta == 0 && phi == 1)
+		  return N_CLUSTERS-2;
+
+		if(eta_side < 1)
+			index = (20-eta)*72+phi-2;
+		else
+			index = (20+eta)*72+phi;
+
+		return index;
+}
+
+
+// Offset by -2 in eta and -2 in phi, special geometry to grab the grid
+ap_uint<12> find_the_index_crys_offset( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> phi, ap_uint<3> eta_offset, ap_uint<3> phi_offset){
+				// First go from cyrstal to tower
+  ///IMPLEMENT ME this needs to take into account the edges, i.e. return 0 if on the edge
+  if(eta > 2 ){
+    eta = (eta + eta_offset - 2)/5;
+  }
+  else{
+    eta = 0;
+  }
+
+  if(phi> 2){
+    phi = (phi + phi_offset - 2)/5;
+  }
+  else{
+    phi = 0;
+  }
                 //the max number of towers is 20... put this in a define
                 ap_uint<12> index;
 		if(eta > 20)
@@ -174,9 +210,8 @@ void tau_alg(pf_charged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_c
 	      else if(charged_cands[jdx].is_electron > 0){
 		if(seed_cand_dr < algo_config.isolation_delta_r){
 		  pf_charged_t electron_cand;
-		  //implement me
-		  unsigned int index_eta = ieta_diff(electron_cand, seed_hadron);
-		  unsigned int index_phi = iphi_diff(electron_cand, seed_hadron);
+		  ap_uint<8> index_eta = ieta_diff(electron_cand, seed_hadron);
+		  ap_uint<8> index_phi = iphi_diff(electron_cand, seed_hadron);
 		  electron_grid_temp[index_eta][index_phi] = electron_cand;
 		}
 	      } 
@@ -200,7 +235,7 @@ void tau_alg(pf_charged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_c
 	    if(seed_hadron.et > algo_config.three_prong_seed){
 	      pftau_t pf_tau_temp;
 	      pf_tau_temp.et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
-	      pf_tau_temp.eta         = weighted_avg_eta(prong_cands[0], prong_cands[1], prong_cands[2]);//implement me
+	      pf_tau_temp.eta         = weighted_avg_eta(prong_cands[0], prong_cands[1], prong_cands[2]);
 	      pf_tau_temp.phi         = weighted_avg_phi(prong_cands[0], prong_cands[1], prong_cands[2]);
 	      pf_tau_temp.iso_charged = iso_sum_charged_hadron;
 	      pf_tau_temp.tau_type    = 10;
@@ -224,47 +259,48 @@ void tau_alg(pf_charged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_c
 void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config){
   //first populate the electron_grid with the photons... implement me!
 
-    ap_uint<7> tau_eta = tau_cand.eta;
-    ap_uint<8> tau_phi = tau_cand.phi;
+    ap_uint<7> tau_eta      = tau_cand.eta;
+    ap_uint<1> tau_eta_side = tau_cand.eta_side;
+    ap_uint<8> tau_phi      = tau_cand.phi;
 
     // Create Grid of 5x5 neutral Clusters
 //IMPLEMENT ME
-    ap_uint<12> index_cen = find_the_index_grid(tau_eta, tau_phi,  0, 0);
-    ap_uint<12> index_p   = find_the_index_grid(tau_eta, tau_phi,  1, 0);
-    ap_uint<12> index_pp  = find_the_index_grid(tau_eta, tau_phi,  2, 0);
-    ap_uint<12> index_m   = find_the_index_grid(tau_eta, tau_phi, -1, 0);
-    ap_uint<12> index_mm  = find_the_index_grid(tau_eta, tau_phi, -2, 0);
+    ap_uint<12> index_mm  = find_the_index_crys_offset(tau_eta, tau_phi,  0, 0);
+    ap_uint<12> index_m   = find_the_index_crys_offset(tau_eta, tau_phi,  1, 0);
+    ap_uint<12> index_cen = find_the_index_crys_offset(tau_eta, tau_phi,  2, 0);
+    ap_uint<12> index_p   = find_the_index_crys_offset(tau_eta, tau_phi,  3, 0);
+    ap_uint<12> index_pp  = find_the_index_crys_offset(tau_eta, tau_phi,  4, 0);
 
     //needs tower eta and tower phi, as well as pt, eta, phi
     strip_t temp_strip[5];    
     strip_t final_strip;
     ap_uint<3> crystal_distance_ = 2;
     // Check if each tau_phi is strip like
-//IMPLEMENT ME
-    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 2],  neutral_clusters[index_mm  + tau_phi - 1], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 1],  neutral_clusters[index_mm  + tau_phi - 0], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 0],  neutral_clusters[index_mm  + tau_phi + 1], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 1],  neutral_clusters[index_mm  + tau_phi + 2], temp_strip[0], crystal_distance_);
 
-    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 2], neutral_clusters[index_m   + tau_phi - 1], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 1], neutral_clusters[index_m   + tau_phi - 0], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 0], neutral_clusters[index_m   + tau_phi + 1], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 1], neutral_clusters[index_m   + tau_phi + 2], temp_strip[1], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 2],  neutral_clusters[index_mm  + tau_phi - 1], temp_strip[0], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 1],  neutral_clusters[index_mm  + tau_phi - 0], temp_strip[0], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 0],  neutral_clusters[index_mm  + tau_phi + 1], temp_strip[0], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 1],  neutral_clusters[index_mm  + tau_phi + 2], temp_strip[0], algo_config);
 
-    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 2], neutral_clusters[index_cen + tau_phi - 1], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 1], neutral_clusters[index_cen + tau_phi - 0], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 0], neutral_clusters[index_cen + tau_phi + 1], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 1], neutral_clusters[index_cen + tau_phi + 2], temp_strip[2], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 2], neutral_clusters[index_m   + tau_phi - 1], temp_strip[1], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 1], neutral_clusters[index_m   + tau_phi - 0], temp_strip[1], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 0], neutral_clusters[index_m   + tau_phi + 1], temp_strip[1], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 1], neutral_clusters[index_m   + tau_phi + 2], temp_strip[1], algo_config);
 
-    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 2], neutral_clusters[index_p   + tau_phi - 1], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 1], neutral_clusters[index_p   + tau_phi - 0], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 0], neutral_clusters[index_p   + tau_phi + 1], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 1], neutral_clusters[index_p   + tau_phi + 2], temp_strip[3], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 2], neutral_clusters[index_cen + tau_phi - 1], temp_strip[2], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 1], neutral_clusters[index_cen + tau_phi - 0], temp_strip[2], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 0], neutral_clusters[index_cen + tau_phi + 1], temp_strip[2], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 1], neutral_clusters[index_cen + tau_phi + 2], temp_strip[2], algo_config);
 
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 2], neutral_clusters[index_pp  + tau_phi - 1], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 1], neutral_clusters[index_pp  + tau_phi - 0], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 0], neutral_clusters[index_pp  + tau_phi + 1], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 1], neutral_clusters[index_pp  + tau_phi + 2], temp_strip[4], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 2], neutral_clusters[index_p   + tau_phi - 1], temp_strip[3], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 1], neutral_clusters[index_p   + tau_phi - 0], temp_strip[3], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 0], neutral_clusters[index_p   + tau_phi + 1], temp_strip[3], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 1], neutral_clusters[index_p   + tau_phi + 2], temp_strip[3], algo_config);
+
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 2], neutral_clusters[index_pp  + tau_phi - 1], temp_strip[4], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 1], neutral_clusters[index_pp  + tau_phi - 0], temp_strip[4], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 0], neutral_clusters[index_pp  + tau_phi + 1], temp_strip[4], algo_config);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 1], neutral_clusters[index_pp  + tau_phi + 2], temp_strip[4], algo_config);
 
     final_strip = temp_strip[0];
     for(ap_uint<3> j = 1; j < 5; j++){
@@ -293,9 +329,8 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t 
       ap_uint<8>  temp_tau_eta;
       ap_uint<8>  temp_tau_phi;
       temp_tau_et  = tau_cand.et + final_strip.et;
-      //Implement me
-      temp_tau_eta = weight_avg_eta(tau_cand,final_strip);
-      temp_tau_phi = weight_avg_phi(tau_cand,final_strip);
+      temp_tau_eta = weighted_avg_eta(tau_cand,final_strip);
+      temp_tau_phi = weighted_avg_phi(tau_cand,final_strip);
 
       tau_cand.et       = temp_tau_et;
       tau_cand.eta      = temp_tau_eta;
@@ -344,6 +379,18 @@ void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_t
 		}
 	}
 
+}
+
+void Check_And_Merge_Strip(cluster_t cluster_1, cluster_t cluster_2, strip_t strip, algo_config_t algo_config){
+  if(cluster1.is_photon > 0 && cluster2.is_photon > 0
+     && position_diff_cluster(cluster_1, cluster_2) < algo_config.eg_strip_merge
+     && strip.et < cluster_1.et + cluster_2.et){
+    
+    strip.et = cluster_1.et + cluster_2.et;
+    strip.eta = //avg cluster eta
+    strip.phi = //avg cluster phi
+    
+  }
 }
 
 ap_uint<1> Delta_R(ap_uint<8> eta_1, ap_uint<8> phi_1, ap_uint<8> eta_2, ap_uint<8> phi_2, ap_uint<8> maximum_delta_R){
@@ -406,6 +453,24 @@ ap_uint<7> weighted_avg_phi(strip_t strip1, strip_t strip2){
   return output_phi;
 }
 
+ap_uint<7> weighted_avg_eta(pf_cand_t strip1, strip_t strip2){
+  ap_uint<12> eta1 = strip1.eta*strip1.et;
+  ap_uint<12> eta2 = strip2.eta*strip2.et;
+  ap_uint<12> sum_et = strip1.et + strip2.et;
+  ap_uint<7> output_eta = (eta1 + eta2)/sum_et;
+
+  return output_eta;
+}
+
+ap_uint<7> weighted_avg_phi(pf_cand_t strip1, strip_t strip2){
+  ap_uint<12> phi1 = strip1.phi*strip1.et;
+  ap_uint<12> phi2 = strip2.phi*strip2.et;
+  ap_uint<12> sum_et = strip1.et + strip2.et;
+  ap_uint<7> output_phi = (phi1 + phi2)/sum_et;
+
+  return output_phi;
+}
+
 ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
   ap_uint<12> eta1 = pf1.eta*pf1.et;
   ap_uint<12> eta2 = pf2.eta*pf2.et;
@@ -445,4 +510,25 @@ ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2){
 		delta_phi = phi_1 - phi_2;
 
 	return (delta_eta + delta_phi);
+}
+
+
+ap_uint<8> ieta_diff(pf_charged_t cand_1, pf_charged_t cand_2){
+  //fix me for eta side
+  if(cand_1.eta > cand_2.eta){
+    return(cand_1.eta - cand_2.eta)
+  }
+  else
+    return(cand_2.eta - cand_1.eta)
+
+}
+
+ap_uint<8> iphi_diff(pf_charged_t cand_1, pf_charged_t cand_2){
+  //fix me for phi side
+  if(cand_1.phi > cand_2.phi){
+    return(cand_1.phi - cand_2.phi)
+  }
+  else
+    return(cand_2.phi - cand_1.phi)
+
 }
