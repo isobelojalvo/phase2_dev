@@ -13,17 +13,18 @@ void file_read_in(
 
 #pragma HLS PIPELINE II=6
 
-	pfcharged_t charged_cands[N_TRACKS];
+	pf_charged_t charged_cands[N_TRACKS];
 
 	////////////////////   PF Particle Matching   ////////////////////
-	pf_match_alg( central_clusters, central_tracks, charged_cands );
+	//changes central_clusters to neutral_clusters
+	pf_match_alg( central_clusters, central_tracks, charged_cands, algo_config);
 
 	////////////////////Three Prong Tau Algorithm////////////////////
 	pftau_t tau_cands[12];
-	tau_algo( charged_cands, central_clusters, algo_config, tau_cands);
+	tau_alg( charged_cands, neutral_clusters, algo_config, tau_cands);
 
 	////////////////////    Algorithm Outputs    ////////////////////
-	algo_outputs.three_prong_tau_et = three_prong_tau_cand[0].et + three_prong_tau_cand[1].et + three_prong_tau_cand[2].et;
+	//algo_outputs.three_prong_tau_et = three_prong_tau_cand[0].et + three_prong_tau_cand[1].et + three_prong_tau_cand[2].et;
 
 
 }
@@ -36,18 +37,25 @@ void file_read_in(
  * |1	73  72*2+1                 |                       |
  * |2	74  72*3+1                 |                       |
  */
-void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks[N_TRACKS] , pfcharged_t charged_cands[N_TRACKS]){
+void pf_match_alg(cluster_t central_clusters[N_CLUSTERS],
+					track_t central_tracks[N_TRACKS] ,
+					pf_charged_t charged_cands[N_TRACKS],
+					algo_config_t algo_config){
   
 	for(int jdx = 0; jdx < N_TRACKS; jdx++)	//note, tracks are already sorted by PT
 	  {
 	    //#pragma HLS UNROLL
-	    chargd_cands[jdx] = central_track[jdx];
+	    charged_cands[jdx].et       = central_tracks[jdx].et;
+	    charged_cands[jdx].eta      = central_tracks[jdx].eta;
+	    charged_cands[jdx].phi      = central_tracks[jdx].phi;
+	    charged_cands[jdx].eta_side = central_tracks[jdx].eta_side;
 	    int index = 0;
 	    
+	    //implement me
 	    index = find_the_index_crys( charged_cands.eta, charged_cands.eta_side, charged_cands.phi);
 	    
 	    // Take the Cluster and use H/E and E/H to determine if Hadron or electron/pi0
-	    if( (central_clusters[index]).EoH > input_EoH_cut_ ){
+	    if( central_clusters[index].EoH > algo_config.input_EoH_cut ){
    	       charged_cands[jdx].is_charged_hadron = 0;
 	       charged_cands[jdx].is_electron = 1;
 	     }
@@ -56,8 +64,8 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks
 	       charged_cands[jdx].is_electron = 0;
 	     }
 
-  	     if(central_clusters[index].et() > charged_cands[jdx].et()){
-	        central_clusters[index].et() = central_clusters[index].et() - charged_cands[jdx].et();
+  	     if(central_clusters[index].et > charged_cands[jdx].et){
+	        central_clusters[index].et = central_clusters[index].et - charged_cands[jdx].et;
 	     }
 	     else{
 	        central_clusters[index].et() = 0;
@@ -66,7 +74,7 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks
 
 
         for(int idx = 0; idx < N_CLUSTERS; idx++){
-	  if(central_clusters[idx].EoH > input_EoH_cut_){
+	  if(central_clusters[idx].EoH > algo_config.input_EoH_cut){
 	    central_clusters[idx].is_photon = 1;
 	    central_clusters[idx].is_neutral_hadron = 0;
 	  }
@@ -87,12 +95,13 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks
  * Then match the detector geometry as seen above
  */
 
-uint32_t find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> phi){
-  // First go from cyrstal to tower
+ap_uint<12> find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> phi){
+				// First go from cyrstal to tower
                 eta = eta/5;
                 phi = phi/5;
-		//temporary caution while code is integrated 
-		//the max number of towers is 20... put this in a define
+                //temporary caution while code is integrated
+                //the max number of towers is 20... put this in a define
+                ap_uint<12> index;
 		if(eta > 20)
 		  return 0;
 
@@ -109,20 +118,22 @@ uint32_t find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> ph
 
 		return index;
 }
-
-void tau_alg(pfcharged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_config_t algo_config){
+//add clusters to void
+void tau_alg(pf_charged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_config_t algo_config){
         int n_taus = 0;
+
+  	  pf_charged_t electron_grid[12][5][5];
 
 	for (unsigned int idx = 0; idx < N_TRACKS; idx++)	//note, tracks are already sorted by PT
 	{
 #pragma HLS UNROLL
 	  
 	  ap_uint<3> n_prongs_found = 0;
-	  pfcharged_t seed_hadron = charged_cands[idx];
-	  pfcharged_t prong_cands[3];
-	  pfcharged_t electrong_grid[12][5][5];
+	  pf_charged_t seed_hadron = charged_cands[idx];
+	  pf_charged_t prong_cands[3];
+		 pf_charged_t electron_grid_temp[5][5];
 	  uint32_t iso_sum_charged_hadron = 0;
-	  if(seedtrack.et < algo_config.three_prong_seed) 
+	  if(seed_hadron.et < algo_config.one_prong_seed)
 	    continue;
 	  
 	  prong_cands[0] = seed_hadron;
@@ -131,18 +142,19 @@ void tau_alg(pfcharged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_co
 	    {
 #pragma HLS UNROLL
 
+
 	      if(idx <= jdx)
-		continue;
+		    continue;
+
+	      ap_uint<8> seed_cand_dr = delta_r_pf_charged(charged_cands[jdx], seed_hadron);
 
 	      //If the 
 	      if(charged_cands[jdx].is_charged_hadron > 0){
-		pfcharged_t pf_charged_hadron_signal_cand = charged_cands[jdx];		
+		pf_charged_t pf_charged_hadron_signal_cand = charged_cands[jdx];
 		n_prongs_found++;
 		
 		
-		
-		//IMPLEMENT ME
-		if(delta_r_pf_charged(pf_charged_hadron_signal_cand, seed_hadron) < three_prong_delta_r_ ){
+		if(seed_cand_dr < algo_config.three_prong_delta_r ){
 		  if(n_prongs_found<2){
 		    prong_cands[1] = pf_charged_hadron_signal_cand;
 		    n_prongs_found++;
@@ -154,23 +166,24 @@ void tau_alg(pfcharged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_co
 		    n_prongs_found++;
 		  }
 		} // check to make sure that the delta_r is less than 5
-		else if(delta_r_pf_charged(pf_charged_hadron_signal_cand, seed_hadron) < isolation_delta_r_ ){
+		else if(seed_cand_dr < algo_config.isolation_delta_r ){
 		  // Sum the isolation here
-		  iso_sum_charged_hadron += pf_charged_hadron_signal_cand.pt;
+		  iso_sum_charged_hadron += pf_charged_hadron_signal_cand.et;
 		}// Less than isolation_delta_r
 	      }
 	      else if(charged_cands[jdx].is_electron > 0){
-		if(delta_r_pf_charged(charged_cands[jdx] , seed_hadron)<isolation_delta_r_){
-		  pfcharged_t electron_cand;
-		  unsigned int index_eta = ieta_diff(electronCand, seed_hadron);
-		  unsigned int index_phi = iphi_diff(electronCand, seed_hadron);
-		  electron_grid[n_taus][index_eta][index_phi] = electron_cand;
+		if(seed_cand_dr < algo_config.isolation_delta_r){
+		  pf_charged_t electron_cand;
+		  //implement me
+		  unsigned int index_eta = ieta_diff(electron_cand, seed_hadron);
+		  unsigned int index_phi = iphi_diff(electron_cand, seed_hadron);
+		  electron_grid_temp[index_eta][index_phi] = electron_cand;
 		}
 	      } 
 	    }
 	  //Create the 1 prong taus
 	  if(n_prongs_found < 3 && n_taus < 12){
-	    if(seed_hadron.et > min_pt_1_prong){
+	    if(seed_hadron.et > algo_config.one_prong_seed){
 	      pftau_t pf_tau_temp;
 	      pf_tau_temp.et          = seed_hadron.et;
 	      pf_tau_temp.eta         = seed_hadron.eta;
@@ -184,7 +197,7 @@ void tau_alg(pfcharged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_co
 	  }
 	  //Create the 3 prong taus
 	  if(n_prongs_found == 3 && n_taus < 12)
-	    if(seed_hadron.et > min_pt_3_prong){
+	    if(seed_hadron.et > algo_config.three_prong_seed){
 	      pftau_t pf_tau_temp;
 	      pf_tau_temp.et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
 	      pf_tau_temp.eta         = weighted_avg_eta(prong_cands[0], prong_cands[1], prong_cands[2]);//implement me
@@ -198,23 +211,24 @@ void tau_alg(pfcharged_t charged_cands[N_TRACKS], pftau_t tau_cands[12], algo_co
 	}
 	//Process the strips in a separate module
 
-	for(ap_unt<4> i = 0; i < n_taus ){
+	for(ap_unt<4> i = 0; i < n_taus ; i++){
 	  if(tau_cands[i].tau_type == 10 || tau_cands[i].et == 0)
 	    continue;
-	  strip_alg(tau_cand[i], electron_grid[i], neutral_clusters);
+	  strip_alg(tau_cand[i], electron_grid[i], neutral_clusters, algo_config);
 	}
 	//FINISH ISOLATION CALCULATION
 
 
 }
 
-void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t neutral_clusters[N_CLUSTERS]){
+void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config){
   //first populate the electron_grid with the photons... implement me!
 
-    ap_uint<7> tau_eta = tauCand[i].eta;
-    ap_uint<8> tau_phi = tauCand[i].phi;
+    ap_uint<7> tau_eta = tau_cand.eta;
+    ap_uint<8> tau_phi = tau_cand.phi;
 
     // Create Grid of 5x5 neutral Clusters
+//IMPLEMENT ME
     ap_uint<12> index_cen = find_the_index_grid(tau_eta, tau_phi,  0, 0);
     ap_uint<12> index_p   = find_the_index_grid(tau_eta, tau_phi,  1, 0);
     ap_uint<12> index_pp  = find_the_index_grid(tau_eta, tau_phi,  2, 0);
@@ -223,34 +237,34 @@ void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t ne
 
     //needs tower eta and tower phi, as well as pt, eta, phi
     strip_t temp_strip[5];    
-    strip_t finalStrip;
+    strip_t final_strip;
     ap_uint<3> crystal_distance_ = 2;
-    // Check if each iPhi is strip like
+    // Check if each tau_phi is strip like
+//IMPLEMENT ME
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 2],  neutral_clusters[index_mm  + tau_phi - 1], temp_strip[0], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi - 1],  neutral_clusters[index_mm  + tau_phi - 0], temp_strip[0], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 0],  neutral_clusters[index_mm  + tau_phi + 1], temp_strip[0], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_mm + tau_phi + 1],  neutral_clusters[index_mm  + tau_phi + 2], temp_strip[0], crystal_distance_);
 
-    Check_And_Merge_Strip(neutral_clusters[index_mm + iPhi - 2],  neutral_clusters[index_mm  + iPhi - 1], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + iPhi - 1],  neutral_clusters[index_mm  + iPhi - 0], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + iPhi + 0],  neutral_clusters[index_mm  + iPhi + 1], temp_strip[0], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_mm + iPhi + 1],  neutral_clusters[index_mm  + iPhi + 2], temp_strip[0], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 2], neutral_clusters[index_m   + tau_phi - 1], temp_strip[1], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi - 1], neutral_clusters[index_m   + tau_phi - 0], temp_strip[1], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 0], neutral_clusters[index_m   + tau_phi + 1], temp_strip[1], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_m   + tau_phi + 1], neutral_clusters[index_m   + tau_phi + 2], temp_strip[1], crystal_distance_);
 
-    Check_And_Merge_Strip(neutral_clusters[index_m   + iPhi - 2], neutral_clusters[index_m   + iPhi - 1], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + iPhi - 1], neutral_clusters[index_m   + iPhi - 0], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + iPhi + 0], neutral_clusters[index_m   + iPhi + 1], temp_strip[1], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_m   + iPhi + 1], neutral_clusters[index_m   + iPhi + 2], temp_strip[1], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 2], neutral_clusters[index_cen + tau_phi - 1], temp_strip[2], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi - 1], neutral_clusters[index_cen + tau_phi - 0], temp_strip[2], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 0], neutral_clusters[index_cen + tau_phi + 1], temp_strip[2], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_cen + tau_phi + 1], neutral_clusters[index_cen + tau_phi + 2], temp_strip[2], crystal_distance_);
 
-    Check_And_Merge_Strip(neutral_clusters[index_cen + iPhi - 2], neutral_clusters[index_cen + iPhi - 1], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + iPhi - 1], neutral_clusters[index_cen + iPhi - 0], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + iPhi + 0], neutral_clusters[index_cen + iPhi + 1], temp_strip[2], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_cen + iPhi + 1], neutral_clusters[index_cen + iPhi + 2], temp_strip[2], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 2], neutral_clusters[index_p   + tau_phi - 1], temp_strip[3], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi - 1], neutral_clusters[index_p   + tau_phi - 0], temp_strip[3], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 0], neutral_clusters[index_p   + tau_phi + 1], temp_strip[3], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_p   + tau_phi + 1], neutral_clusters[index_p   + tau_phi + 2], temp_strip[3], crystal_distance_);
 
-    Check_And_Merge_Strip(neutral_clusters[index_p   + iPhi - 2], neutral_clusters[index_p   + iPhi - 1], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + iPhi - 1], neutral_clusters[index_p   + iPhi - 0], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + iPhi + 0], neutral_clusters[index_p   + iPhi + 1], temp_strip[3], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_p   + iPhi + 1], neutral_clusters[index_p   + iPhi + 2], temp_strip[3], crystal_distance_);
-
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + iPhi - 2], neutral_clusters[index_pp  + iPhi - 1], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + iPhi - 1], neutral_clusters[index_pp  + iPhi - 0], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + iPhi + 0], neutral_clusters[index_pp  + iPhi + 1], temp_strip[4], crystal_distance_);
-    Check_And_Merge_Strip(neutral_clusters[index_pp  + iPhi + 1], neutral_clusters[index_pp  + iPhi + 2], temp_strip[4], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 2], neutral_clusters[index_pp  + tau_phi - 1], temp_strip[4], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi - 1], neutral_clusters[index_pp  + tau_phi - 0], temp_strip[4], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 0], neutral_clusters[index_pp  + tau_phi + 1], temp_strip[4], crystal_distance_);
+    Check_And_Merge_Strip(neutral_clusters[index_pp  + tau_phi + 1], neutral_clusters[index_pp  + tau_phi + 2], temp_strip[4], crystal_distance_);
 
     final_strip = temp_strip[0];
     for(ap_uint<3> j = 1; j < 5; j++){
@@ -260,12 +274,12 @@ void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t ne
       }
 
       //merge strips if two are close by
-      if(position_diff( temp_strip[j], temp_strip[j-1]) < crystal_distance){
+      if(position_diff( temp_strip[j], temp_strip[j-1]) < algo_config.max_neighbor_strip_dist){
 	if(temp_strip[j].et + temp_strip[j-1].et > final_strip.et()){
 
 	  ap_uint<12> et  = temp_strip[j].et + temp_strip[j-1].et;
 	  final_strip.et  = et ;
-	  final_strip.eta = weighted_avg_eta(temp_strip[j], temp_strip[j-1]);//Implement me
+	  final_strip.eta = weighted_avg_eta(temp_strip[j], temp_strip[j-1]);
 	  final_strip.phi = weighted_avg_phi(temp_strip[j], temp_strip[j-1]);
 
 	}
@@ -273,19 +287,20 @@ void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t ne
     }
 
   //find 1 prong pi0's by combining the 1 prong and the pi0's
-    if(tauCand[i].tau_type == 0 && final_strip.et > 2.5){
+    if(tau_cand.tau_type == 0 && final_strip.et > algo_config.min_strip){
       //take care of eta_side
       ap_uint<12> temp_tau_et;
       ap_uint<8>  temp_tau_eta;
       ap_uint<8>  temp_tau_phi;
-      temp_tau_et  = tauCand[i].et + final_strip.et;
-      temp_tau_eta = weight_avg_eta(tauCand[i],final_strip); //Implement me
-      temp_tau_phi = weight_avg_phi(tauCand[i],final_strip);
+      temp_tau_et  = tau_cand.et + final_strip.et;
+      //Implement me
+      temp_tau_eta = weight_avg_eta(tau_cand,final_strip);
+      temp_tau_phi = weight_avg_phi(tau_cand,final_strip);
 
-      tauCand[i].et       = temp_tau_et;
-      tauCand[i].eta      = temp_tau_eta;
-      tauCand[i].phi      = temp_tau_phi;
-      tauCand[i].tau_type = 1;
+      tau_cand.et       = temp_tau_et;
+      tau_cand.eta      = temp_tau_eta;
+      tau_cand.phi      = temp_tau_phi;
+      tau_cand.tau_type = 1;
     }
 }
 
@@ -391,6 +406,25 @@ ap_uint<7> weighted_avg_phi(strip_t strip1, strip_t strip2){
   return output_phi;
 }
 
+ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
+  ap_uint<12> eta1 = pf1.eta*pf1.et;
+  ap_uint<12> eta2 = pf2.eta*pf2.et;
+  ap_uint<12> eta3 = pf3.eta*pf3.et;
+  ap_uint<12> sum_et = pf1.et + pf2.et + pf3.et;
+  ap_uint<7> output_eta = (eta1 + eta2 + eta3)/sum_et;
+
+  return output_eta;
+}
+
+ap_uint<7> weighted_avg_phi(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
+  ap_uint<12> phi1 = pf1.phi*pf1.et;
+  ap_uint<12> phi2 = pf2.phi*pf2.et;
+  ap_uint<12> phi3 = pf3.phi*pf3.et;
+  ap_uint<12> sum_et = pf1.et + pf2.et + pf3.et;
+  ap_uint<7> output_phi = (phi1 + phi2 + phi3)/sum_et;
+
+  return output_phi;
+}
 
 ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2){
 	ap_uint<8> delta_eta = 0;

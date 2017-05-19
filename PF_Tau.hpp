@@ -14,7 +14,6 @@ typedef struct
 	ap_uint<1> eta_side;
 	ap_uint<7> eta;
 	ap_uint<8> phi;
-	ap_uint<1> charged_hadron;
 } track_t;
 
 typedef struct
@@ -25,6 +24,8 @@ typedef struct
 	ap_uint<8> phi;
 	ap_uint<8> EoH;
 	ap_uint<8> HoE;
+    ap_uint<1> is_photon;
+    ap_uint<1> is_neutral_hadron;
 } cluster_t;
 
 
@@ -57,6 +58,7 @@ typedef struct
 	ap_uint<7> eta;
 	ap_uint<8> phi;
         ap_uint<4> tau_type;
+        ap_uint<12> iso_charged;
 
 } pftau_t;
 
@@ -72,8 +74,12 @@ typedef struct
 typedef struct{
 	ap_uint<11> three_prong_seed;
 	ap_uint<11> three_prong_delta_r;
+	ap_uint<11> isolation_delta_r;
+	ap_uint<11> one_prong_seed;
 	ap_uint<1> dummy;
-
+	ap_uint<5> input_EoH_cut;
+	ap_uint<5> max_neighbor_strip_dist;
+	ap_uint<11> min_strip;
 } algo_config_t;
 
 typedef struct{
@@ -95,8 +101,13 @@ ap_uint<1> Delta_R(ap_uint<8> eta_1,
 
 void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_tau_cand[3], algo_config_t algo_config);
 
-void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks[N_TRACKS] , pfcharged_t charged_cands[N_TRACKS]);
+void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks[N_TRACKS] , pf_charged_t charged_cands[N_TRACKS],  algo_config_t algo_config);
 
-void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t neutral_clusters[N_CLUSTERS]);
+void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t neutral_clusters[N_CLUSTERS]);
 
+void tau_alg(pf_charged_t charged_cands[N_TRACKS], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
+
+ap_uint<7> weighted_avg_phi(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+
+ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 #endif
