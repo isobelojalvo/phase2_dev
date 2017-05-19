@@ -49,6 +49,26 @@ typedef struct
         ap_uint<1> is_muon;
 } pf_charged_t;
 
+typedef struct
+{
+
+	ap_uint<11> et;
+	ap_uint<1> eta_side;
+	ap_uint<7> eta;
+	ap_uint<8> phi;
+        ap_uint<4> tau_type;
+
+} pftau_t;
+
+typedef struct
+{
+  	ap_uint<11> et;
+	ap_uint<1> eta_side;
+	ap_uint<7> eta;
+	ap_uint<8> phi;
+
+} strip_t;
+
 typedef struct{
 	ap_uint<11> three_prong_seed;
 	ap_uint<11> three_prong_delta_r;
@@ -76,5 +96,7 @@ ap_uint<1> Delta_R(ap_uint<8> eta_1,
 void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_tau_cand[3], algo_config_t algo_config);
 
 void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks[N_TRACKS] , pfcharged_t charged_cands[N_TRACKS]);
+
+void strip_alg(pftau_t tau_cand, pfcharged_t electron_grid[5][5], pfneutral_t neutral_clusters[N_CLUSTERS]);
 
 #endif
