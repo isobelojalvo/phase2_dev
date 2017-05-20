@@ -1,12 +1,12 @@
-#ifndef file_read_in_H_
-#define file_read_in_H_
+#ifndef pf_tau_H_
+#define pf_tau_H_
 
 #include <stdint.h>
 #include <ap_int.h>
 
 //define number of tracks
 #define N_TRACKS (50)
-#define N_CLUSTERS (2880)
+#define N_CLUSTERS (500)
 
 typedef struct
 {
@@ -89,8 +89,9 @@ typedef struct{
 } algo_outputs_t;
 
 void file_read_in(track_t tracks[N_TRACKS],
-		algo_config_t algo_config,
-		algo_outputs_t & algo_outputs
+		  cluster_t clusters[N_CLUSTERS],
+		  algo_config_t algo_config,
+		  algo_outputs_t & algo_outputs
 );
 
 
@@ -100,12 +101,15 @@ ap_uint<1> Delta_R(ap_uint<8> eta_1,
 			ap_uint<8> phi_2,
 			ap_uint<8> maximum_delta_R);
 
-ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2);
+ap_uint<12> find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> phi);
 
+ap_uint<12> find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8> phi);
+
+ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2);
 
 ap_uint<7> weighted_avg_eta_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 
-ap_uint<8> weighted_avg_phi_p_p_o(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+ap_uint<8> weighted_avg_phi_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 
 ap_uint<7> weighted_avg_eta_s_s(strip_t strip1, strip_t strip2);
 
@@ -137,9 +141,11 @@ ap_uint<8> iphi_diff(pf_charged_t cand_1, pf_charged_t cand_2);
 
 ap_uint<10> delta_r_strip(strip_t strip1, strip_t strip2);
 
+ap_uint<10> delta_r_cluster(cluster_t cluster1, cluster_t cluster2);
+
 void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cluster_2, pf_charged_t electron_2, strip_t strip, algo_config_t algo_config);
 
-void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config);
+void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config);
 
 void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_tau_cand[3], algo_config_t algo_config);
 
@@ -147,6 +153,7 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks
 
 // Tau_alg Takes in charged cands, central (neutral) clusters, the algorithm configuration 
 // Returns the tau cands
-void tau_alg(pf_charged_t charged_cands[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
+
+void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
 
 #endif

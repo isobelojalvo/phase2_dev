@@ -27,7 +27,7 @@ void file_read_in(
 	tau_alg( charged_cands, central_clusters, algo_config, tau_cands);
 
 	////////////////////    Algorithm Outputs    ////////////////////
-	algo_outputs.taus = tau_cands;
+	//algo_outputs.taus = tau_cands;
 
 
 }
@@ -70,7 +70,7 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS],
 	        central_clusters[index].et = central_clusters[index].et - pf_charged[jdx].et;
 	     }
 	     else{
-	        central_clusters[index].et() = 0;
+	        central_clusters[index].et = 0;
 	     } 
          }
 
@@ -158,7 +158,7 @@ ap_uint<12> find_the_index_crys_offset( ap_uint<7> eta, ap_uint<1> eta_side, ap_
 		return index;
 }
 //add clusters to void
-void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], pftau_t tau_cands[12], algo_config_t algo_config){
+void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]){
 
         ap_uint<4> n_taus = 0;
 
@@ -171,12 +171,14 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 	  ap_uint<3> n_prongs_found = 0;
 	  pf_charged_t seed_hadron = pf_charged[idx];
 	  pf_charged_t prong_cands[3];
-	  pf_charged_t electron_grid_temp[5][5];
+	  //pf_charged_t electron_grid_temp[5][5];
 	  uint32_t iso_sum_charged_hadron = 0;
 
-	  if(seed_hadron.et < algo_config.one_prong_seed)
+	  if(seed_hadron.et < algo_config.one_prong_seed || seed_hadron.is_charged_hadron < 0)
 	    continue;
 	  
+	  // Minimal requirements for building a tau have been met, now we begin construction
+	  // (Any additional minimal requirements for building tau should go above.)
 	  prong_cands[0] = seed_hadron;
 	  
 	  // Now that we have 1 prong Loop through the remaining pf_charged objects to find more prongs
@@ -224,7 +226,7 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 		    index_eta = 0; 
 		    index_phi = 0;
 		  }
-		  electron_grid_temp[index_eta][index_phi] = electron_cand;
+		  electron_grid[n_taus][index_eta][index_phi] = electron_cand;
 		}
 	      } 
 	    }// Finished looking through all the charged pf candidates
@@ -232,14 +234,13 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 	  //Create the 1 prong taus
 	  if(n_prongs_found < 3 && n_taus < 12){
 	    if(seed_hadron.et > algo_config.one_prong_seed){
-	      pftau_t pf_tau_temp;
-	      pf_tau_temp.et          = seed_hadron.et;
-	      pf_tau_temp.eta         = seed_hadron.eta;
-	      pf_tau_temp.phi         = seed_hadron.phi;
-	      pf_tau_temp.iso_charged = iso_sum_charged_hadron + prong_cands[2]; // prong_cands[2] should be 0 if only 1 prong, check me
-	      pf_tau_temp.tau_type    = 0;
-	      electron_grid[n_taus]   = electron_grid_temp;
-	      tau_cands[n_taus]       = pf_tau_temp;
+
+	      tau_cands[n_taus].et          = seed_hadron.et;
+	      tau_cands[n_taus].eta         = seed_hadron.eta;
+	      tau_cands[n_taus].phi         = seed_hadron.phi;
+	      // prong_cands[2] should be 0 if only 1 prong, check me
+	      tau_cands[n_taus].iso_charged = iso_sum_charged_hadron + prong_cands[2].et; 
+	      tau_cands[n_taus].tau_type    = 0;
 	      n_taus++;
 	    }
 	  }
@@ -247,14 +248,11 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 	  //Create the 3 prong taus
 	  if(n_prongs_found == 3 && n_taus < 12)
 	    if(seed_hadron.et > algo_config.three_prong_seed){
-	      pftau_t pf_tau_temp;
-	      pf_tau_temp.et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
-	      pf_tau_temp.eta         = weighted_avg_eta_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
-	      pf_tau_temp.phi         = weighted_avg_phi_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
-	      pf_tau_temp.iso_charged = iso_sum_charged_hadron;
-	      pf_tau_temp.tau_type    = 10;
-	      electron_grid[n_taus]   = electron_grid_temp;
-	      tau_cands[n_taus]       = pf_tau_temp;
+	      tau_cands[n_taus].et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
+	      tau_cands[n_taus].eta         = weighted_avg_eta_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
+	      tau_cands[n_taus].phi         = weighted_avg_phi_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
+	      tau_cands[n_taus].iso_charged = iso_sum_charged_hadron;
+	      tau_cands[n_taus].tau_type    = 10;
 	      n_taus++;
 	    }
 	}
@@ -354,13 +352,13 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5],  cluster_t ne
     final_strip = temp_strip[0];
     for(ap_uint<3> j = 1; j < 5; j++){
       //first check if strip j is greater than final strip
-      if(temp_strip[j] > final_strip){
+      if(temp_strip[j].et > final_strip.et){
 	final_strip = temp_strip[j];
       }
 
       //merge strips if two are close by
       if(delta_r_strip( temp_strip[j], temp_strip[j-1]) < algo_config.max_neighbor_strip_dist){
-	if(temp_strip[j].et + temp_strip[j-1].et > final_strip.et()){
+	if(temp_strip[j].et + temp_strip[j-1].et > final_strip.et){
 
 	  ap_uint<12> et  = temp_strip[j].et + temp_strip[j-1].et;
 	  final_strip.et  = et ;
@@ -542,7 +540,7 @@ ap_uint<7> weighted_avg_eta_s_s(strip_t strip1, strip_t strip2){
   return output_eta;
 }
 
-ap_uint<7> weighted_avg_phi_s_s(strip_t strip1, strip_t strip2){
+ap_uint<8> weighted_avg_phi_s_s(strip_t strip1, strip_t strip2){
   ap_uint<12> phi1 = strip1.phi*strip1.et;
   ap_uint<12> phi2 = strip2.phi*strip2.et;
   ap_uint<12> sum_et = strip1.et + strip2.et;
@@ -633,7 +631,7 @@ ap_uint<7> weighted_avg_eta_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged
   return output_eta;
 }
 
-ap_uint<7> weighted_avg_phi_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
+ap_uint<8> weighted_avg_phi_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
   ap_uint<12> phi1 = pf1.phi*pf1.et;
   ap_uint<12> phi2 = pf2.phi*pf2.et;
   ap_uint<12> phi3 = pf3.phi*pf3.et;
@@ -665,7 +663,7 @@ ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2){
 }
 
 
-ap_uint<8> ieta_diff(pf_charged_t cand_1, pf_charged_t cand_2){
+ap_uint<7> ieta_diff(pf_charged_t cand_1, pf_charged_t cand_2){
   //fix me for eta side
   if(cand_1.eta > cand_2.eta){
     return(cand_1.eta - cand_2.eta);

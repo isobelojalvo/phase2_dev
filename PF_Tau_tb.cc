@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "file_read_in.hpp"
+#include "PF_Tau.hpp"
 
 using namespace std;
 #define events_in_file (1)
@@ -119,7 +119,7 @@ void unpack_input_tracks(vector<unsigned int>  region_raw,
 
 // are tracks to be sorted by eta/phi?
 void unpack_input_clusters(vector<unsigned int>  region_raw,
-						track_t central_cluster [N_CLUSTERS]){
+						cluster_t central_cluster [N_CLUSTERS]){
 	//fix me for tracks
 
 	for (unsigned int idx_out = 0; idx_out < N_CLUSTERS; idx_out++)
@@ -142,7 +142,7 @@ int main()
 	vector< vector< unsigned int> > clusters_raw = read_clusters_from_file();
 
 	track_t central_tracks[N_TRACKS];
-	track_t central_clusters[N_CLUSTERS];
+	cluster_t central_clusters[N_CLUSTERS];
 
 	for (int i = 0; i < events_in_file; i++)
 	{
@@ -159,7 +159,7 @@ int main()
 
 	algo_outputs_t algo_outputs;
 
-	file_read_in(central_tracks, algo_config, algo_outputs);
+	file_read_in(central_tracks, central_clusters, algo_config, algo_outputs);
 
 	cout<<"Sum Pt "<<algo_outputs.sum_tracks<<std::endl;
 }
