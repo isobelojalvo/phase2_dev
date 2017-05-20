@@ -79,6 +79,7 @@ typedef struct{
 	ap_uint<5>  input_EoH_cut;
 	ap_uint<5>  max_neighbor_strip_dist;
 	ap_uint<11> min_strip;
+	ap_uint<5>  eg_strip_merge;
 } algo_config_t;
 
 typedef struct{
@@ -102,25 +103,33 @@ ap_uint<1> Delta_R(ap_uint<8> eta_1,
 ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2);
 
 
-ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+ap_uint<7> weighted_avg_eta_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 
-ap_uint<8> weighted_avg_phi(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
+ap_uint<8> weighted_avg_phi_p_p_o(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3);
 
-ap_uint<7> weighted_avg_eta(pf_charged_t strip1, strip_t strip2);
+ap_uint<7> weighted_avg_eta_s_s(strip_t strip1, strip_t strip2);
 
-ap_uint<8> weighted_avg_phi(pf_charged_t strip1, strip_t strip2);
+ap_uint<8> weighted_avg_phi_s_s(strip_t strip1, strip_t strip2);
 
-ap_uint<7> weighted_avg_eta(cluster_t cluster1, cluster_t cluster2);
+ap_uint<7> weighted_avg_eta_c_c(cluster_t cluster1, cluster_t cluster2);
 
-ap_uint<8> weighted_avg_phi(cluster_t cluster1, cluster_t cluster2);
+ap_uint<8> weighted_avg_phi_c_c(cluster_t cluster1, cluster_t cluster2);
 
-ap_uint<7> weighted_avg_eta(pf_charged_t strip1, strip_t strip2);
+ap_uint<7> weighted_avg_eta_p_s(pf_charged_t strip1, strip_t strip2);
 
-ap_uint<8> weighted_avg_phi(pf_charged_t strip1, strip_t strip2);
+ap_uint<8> weighted_avg_phi_p_s(pf_charged_t strip1, strip_t strip2);
 
-ap_uint<7> weighted_avg_eta(cluster_t cluster1, strip_t strip2);
+ap_uint<7> weighted_avg_eta_c_s(cluster_t cluster1, strip_t strip2);
 
-ap_uint<8> weighted_avg_phi(cluster_t cluster1, strip_t strip2);
+ap_uint<8> weighted_avg_phi_c_s(cluster_t cluster1, strip_t strip2);
+
+ap_uint<8> weighted_avg_phi_c_p(cluster_t cluster1, pf_charged_t cluster2);
+
+ap_uint<7> weighted_avg_eta_c_p(cluster_t cluster1, pf_charged_t cluster2);
+
+ap_uint<8> weighted_avg_phi_t_s(pftau_t strip1, strip_t strip2);
+
+ap_uint<7> weighted_avg_eta_t_s(pftau_t strip1, strip_t strip2);
 
 ap_uint<7> ieta_diff(pf_charged_t cand_1, pf_charged_t cand_2);
 
@@ -128,7 +137,7 @@ ap_uint<8> iphi_diff(pf_charged_t cand_1, pf_charged_t cand_2);
 
 ap_uint<10> delta_r_strip(strip_t strip1, strip_t strip2);
 
-void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron1, cluster_t cluster_2, pf_charged_t electron2, strip_t strip, algo_config_t algo_config);
+void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cluster_2, pf_charged_t electron_2, strip_t strip, algo_config_t algo_config);
 
 void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config);
 
@@ -138,6 +147,6 @@ void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks
 
 // Tau_alg Takes in charged cands, central (neutral) clusters, the algorithm configuration 
 // Returns the tau cands
-void tau_alg(pf_charged_t charged_cands[N_TRACKS], pf_neutral_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
+void tau_alg(pf_charged_t charged_cands[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
 
 #endif

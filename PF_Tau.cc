@@ -1,4 +1,4 @@
-#include "file_read_in.hpp"
+#include "PF_Tau.hpp"
 
 void file_read_in(
 		track_t central_tracks[N_TRACKS],  // Number of tracks
@@ -158,7 +158,7 @@ ap_uint<12> find_the_index_crys_offset( ap_uint<7> eta, ap_uint<1> eta_side, ap_
 		return index;
 }
 //add clusters to void
-void tau_alg(pf_charged_t pf_charged[N_TRACKS], clusters_t neutral_clusters[N_CLUSTERS], pftau_t tau_cands[12], algo_config_t algo_config){
+void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], pftau_t tau_cands[12], algo_config_t algo_config){
 
         ap_uint<4> n_taus = 0;
 
@@ -249,8 +249,8 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], clusters_t neutral_clusters[N_CL
 	    if(seed_hadron.et > algo_config.three_prong_seed){
 	      pftau_t pf_tau_temp;
 	      pf_tau_temp.et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
-	      pf_tau_temp.eta         = weighted_avg_eta(prong_cands[0], prong_cands[1], prong_cands[2]);
-	      pf_tau_temp.phi         = weighted_avg_phi(prong_cands[0], prong_cands[1], prong_cands[2]);
+	      pf_tau_temp.eta         = weighted_avg_eta_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
+	      pf_tau_temp.phi         = weighted_avg_phi_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
 	      pf_tau_temp.iso_charged = iso_sum_charged_hadron;
 	      pf_tau_temp.tau_type    = 10;
 	      electron_grid[n_taus]   = electron_grid_temp;
@@ -286,12 +286,6 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5],  cluster_t ne
     strip_t temp_strip[5];    
     strip_t final_strip;
 
-    ap_uint<12> index_m   = find_the_index_crys_offset(tau_eta, tau_eta_side, tau_phi,  1, 0);
-
-    merge_strip_algo( clusters[index - 2], electron_grid[0][0], clusters[index - 1], electron_grid[0][1], temp_strip[0]);
-    merge_strip_algo( clusters[index - 1], electron_grid[0][1], clusters[index - 0], electron_grid[0][2], temp_strip[0]);
-    merge_strip_algo( clusters[index + 0], electron_grid[0][2], clusters[index + 1], electron_grid[0][3], temp_strip[0]);
-    merge_strip_algo( clusters[index + 1], electron_grid[0][3], clusters[index + 2], electron_grid[0][4], temp_strip[0]);
 
     // Check if each tau_phi slice is strip like
     // This module looks at each strip starting from the top cluster and going to the bottom
@@ -305,31 +299,57 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5],  cluster_t ne
     //   |3|3|3|3|3|
     //   |4|4|4|4|4|
     //   -----------
+    cluster_t cluster;
+    pf_charged_t charged;
 
-    merge_strip_algo(neutral_clusters[index_mm  + tau_phi - 2], electron_grid[0][0], neutral_clusters[index_mm  + tau_phi - 1], electron_grid[0][1], temp_strip[0], algo_config);
-    merge_strip_algo(neutral_clusters[index_mm  + tau_phi - 1], electron_grid[0][1], neutral_clusters[index_mm  + tau_phi - 0], electron_grid[0][2], temp_strip[0], algo_config);
-    merge_strip_algo(neutral_clusters[index_mm  + tau_phi + 0], electron_grid[0][2], neutral_clusters[index_mm  + tau_phi + 1], electron_grid[0][3], temp_strip[0], algo_config);
-    merge_strip_algo(neutral_clusters[index_mm  + tau_phi + 1], electron_grid[0][3], neutral_clusters[index_mm  + tau_phi + 2], electron_grid[0][4], temp_strip[0], algo_config);
+    ap_uint<8> index1; ap_uint<8> index2;
+    index1 = index_mm  + tau_phi - 2;    index2 = index_mm  + tau_phi - 1;
+    merge_strip_algo(neutral_clusters[index1], electron_grid[0][0], neutral_clusters[index2], electron_grid[0][1], temp_strip[0], algo_config);
 
-    merge_strip_algo(neutral_clusters[index_m   + tau_phi - 2], electron_grid[1][0], neutral_clusters[index_m   + tau_phi - 1], electron_grid[1][1], temp_strip[1], algo_config);
-    merge_strip_algo(neutral_clusters[index_m   + tau_phi - 1], electron_grid[1][1], neutral_clusters[index_m   + tau_phi - 0], electron_grid[1][2], temp_strip[1], algo_config);
-    merge_strip_algo(neutral_clusters[index_m   + tau_phi + 0], electron_grid[1][2], neutral_clusters[index_m   + tau_phi + 1], electron_grid[1][3], temp_strip[1], algo_config);
-    merge_strip_algo(neutral_clusters[index_m   + tau_phi + 1], electron_grid[1][3], neutral_clusters[index_m   + tau_phi + 2], electron_grid[1][4], temp_strip[1], algo_config);
+    index1 = index_mm  + tau_phi - 1; index2 = index_mm  + tau_phi - 0;
+    merge_strip_algo(neutral_clusters[index1], electron_grid[0][1], neutral_clusters[index2], electron_grid[0][2], temp_strip[0], algo_config);
 
-    merge_strip_algo(neutral_clusters[index_cen + tau_phi - 2], electron_grid[2][0], neutral_clusters[index_cen + tau_phi - 1], electron_grid[2][1], temp_strip[2], algo_config);
-    merge_strip_algo(neutral_clusters[index_cen + tau_phi - 1], electron_grid[2][1], neutral_clusters[index_cen + tau_phi - 0], electron_grid[2][2], temp_strip[2], algo_config);
-    merge_strip_algo(neutral_clusters[index_cen + tau_phi + 0], electron_grid[2][2], neutral_clusters[index_cen + tau_phi + 1], electron_grid[2][3], temp_strip[2], algo_config);
-    merge_strip_algo(neutral_clusters[index_cen + tau_phi + 1], electron_grid[2][3], neutral_clusters[index_cen + tau_phi + 2], electron_grid[2][4], temp_strip[2], algo_config);
+    index1 = index_mm  + tau_phi + 0; index2 = index_mm  + tau_phi + 1;
+    merge_strip_algo(neutral_clusters[index1], electron_grid[0][2], neutral_clusters[index2], electron_grid[0][3], temp_strip[0], algo_config);
 
-    merge_strip_algo(neutral_clusters[index_p   + tau_phi - 2], electron_grid[3][0], neutral_clusters[index_p   + tau_phi - 1], electron_grid[3][1], temp_strip[3], algo_config);
-    merge_strip_algo(neutral_clusters[index_p   + tau_phi - 1], electron_grid[3][1], neutral_clusters[index_p   + tau_phi - 0], electron_grid[3][2], temp_strip[3], algo_config);
-    merge_strip_algo(neutral_clusters[index_p   + tau_phi + 0], electron_grid[3][2], neutral_clusters[index_p   + tau_phi + 1], electron_grid[3][3], temp_strip[3], algo_config);
-    merge_strip_algo(neutral_clusters[index_p   + tau_phi + 1], electron_grid[3][3], neutral_clusters[index_p   + tau_phi + 2], electron_grid[3][4], temp_strip[3], algo_config);
+    index1 = index_mm  + tau_phi + 1; index2 = index_mm  + tau_phi + 2;
+    merge_strip_algo(neutral_clusters[index1], electron_grid[0][3], neutral_clusters[index2], electron_grid[0][4], temp_strip[0], algo_config);
 
-    merge_strip_algo(neutral_clusters[index_pp  + tau_phi - 2], electron_grid[4][0], neutral_clusters[index_pp  + tau_phi - 1], electron_grid[4][1], temp_strip[4], algo_config);
-    merge_strip_algo(neutral_clusters[index_pp  + tau_phi - 1], electron_grid[4][1], neutral_clusters[index_pp  + tau_phi - 0], electron_grid[4][2], temp_strip[4], algo_config);
-    merge_strip_algo(neutral_clusters[index_pp  + tau_phi + 0], electron_grid[4][2], neutral_clusters[index_pp  + tau_phi + 1], electron_grid[4][3], temp_strip[4], algo_config);
-    merge_strip_algo(neutral_clusters[index_pp  + tau_phi + 1], electron_grid[4][3], neutral_clusters[index_pp  + tau_phi + 2], electron_grid[4][4], temp_strip[4], algo_config);
+    index1 = index_m   + tau_phi - 2; index2 = index_m   + tau_phi - 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[1][0], neutral_clusters[index2], electron_grid[1][1], temp_strip[1], algo_config);
+    index1 = index_m   + tau_phi - 1; index2 = index_m   + tau_phi - 0;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[1][1], neutral_clusters[index2], electron_grid[1][2], temp_strip[1], algo_config);
+    index1 = index_m   + tau_phi + 0; index2 = index_m   + tau_phi + 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[1][2], neutral_clusters[index2], electron_grid[1][3], temp_strip[1], algo_config);
+    index1 = index_m   + tau_phi + 1; index2 = index_m   + tau_phi + 2;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[1][3], neutral_clusters[index2], electron_grid[1][4], temp_strip[1], algo_config);
+
+    index1 = index_cen + tau_phi - 2; index2 = index_cen + tau_phi - 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[2][0], neutral_clusters[index2], electron_grid[2][1], temp_strip[2], algo_config);
+    index1 = index_cen + tau_phi - 1; index2 = index_cen + tau_phi - 0;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[2][1], neutral_clusters[index2], electron_grid[2][2], temp_strip[2], algo_config);
+    index1 = index_cen + tau_phi + 0; index2 = index_cen + tau_phi + 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[2][2], neutral_clusters[index2], electron_grid[2][3], temp_strip[2], algo_config);
+    index1 = index_cen + tau_phi + 1; index2 = index_cen + tau_phi + 2;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[2][3], neutral_clusters[index2], electron_grid[2][4], temp_strip[2], algo_config);
+
+    index1 = index_p   + tau_phi - 2; index2 = index_p   + tau_phi - 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[3][0], neutral_clusters[index2], electron_grid[3][1], temp_strip[3], algo_config);
+    index1 = index_p   + tau_phi - 1; index2 = index_p   + tau_phi - 0;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[3][1], neutral_clusters[index2], electron_grid[3][2], temp_strip[3], algo_config);
+    index1 = index_p   + tau_phi + 0; index2 = index_p   + tau_phi + 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[3][2], neutral_clusters[index2], electron_grid[3][3], temp_strip[3], algo_config);
+    index1 = index_p   + tau_phi + 1; index2 = index_p   + tau_phi + 2;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[3][3], neutral_clusters[index2], electron_grid[3][4], temp_strip[3], algo_config);
+
+    index1 = index_pp  + tau_phi - 2; index2 = index_pp  + tau_phi - 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[4][0], neutral_clusters[index2], electron_grid[4][1], temp_strip[4], algo_config);
+    index1 = index_pp  + tau_phi - 1; index2 = index_pp  + tau_phi - 0;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[4][1], neutral_clusters[index2], electron_grid[4][2], temp_strip[4], algo_config);
+    index1 = index_pp  + tau_phi + 0; index2 = index_pp  + tau_phi + 1;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[4][2], neutral_clusters[index2], electron_grid[4][3], temp_strip[4], algo_config);
+    index1 = index_pp  + tau_phi + 1; index2 = index_pp  + tau_phi + 2;
+    merge_strip_algo(neutral_clusters[index2], electron_grid[4][3], neutral_clusters[index2], electron_grid[4][4], temp_strip[4], algo_config);
 
     final_strip = temp_strip[0];
     for(ap_uint<3> j = 1; j < 5; j++){
@@ -344,8 +364,8 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5],  cluster_t ne
 
 	  ap_uint<12> et  = temp_strip[j].et + temp_strip[j-1].et;
 	  final_strip.et  = et ;
-	  final_strip.eta = weighted_avg_eta(temp_strip[j], temp_strip[j-1]);
-	  final_strip.phi = weighted_avg_phi(temp_strip[j], temp_strip[j-1]);
+	  final_strip.eta = weighted_avg_eta_s_s(temp_strip[j], temp_strip[j-1]);
+	  final_strip.phi = weighted_avg_phi_s_s(temp_strip[j], temp_strip[j-1]);
 
 	}
       }
@@ -358,8 +378,8 @@ void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5],  cluster_t ne
       ap_uint<8>  temp_tau_eta;
       ap_uint<8>  temp_tau_phi;
       temp_tau_et  = tau_cand.et + final_strip.et;
-      temp_tau_eta = weighted_avg_eta(tau_cand,final_strip);
-      temp_tau_phi = weighted_avg_phi(tau_cand,final_strip);
+      temp_tau_eta = weighted_avg_eta_t_s(tau_cand,final_strip);
+      temp_tau_phi = weighted_avg_phi_t_s(tau_cand,final_strip);
 
       tau_cand.et       = temp_tau_et;
       tau_cand.eta      = temp_tau_eta;
@@ -412,13 +432,15 @@ void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_t
 
 void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cluster_2, pf_charged_t electron_2, strip_t strip, algo_config_t algo_config){
 
-  cluster_t temp_cluster_1.et = cluster_1.et + electron_1.et;
-  temp_cluster_1.phi = weighted_avg_phi(cluster_1 + electron_1);
-  temp_cluster_1.phi = weighted_avg_phi(cluster_1 + electron_1);
+  cluster_t temp_cluster_1;
+  temp_cluster_1.et = cluster_1.et + electron_1.et;
+  temp_cluster_1.phi = weighted_avg_phi_c_p(cluster_1, electron_1);
+  temp_cluster_1.eta = weighted_avg_eta_c_p(cluster_1, electron_1);
 
-  cluster_t temp_cluster_2.et = cluster_2.et + electron_2.et;
-  temp_cluster_2.phi = weighted_avg_phi(cluster_2 + electron_2);
-  temp_cluster_2.phi = weighted_avg_phi(cluster_2 + electron_2);
+  cluster_t temp_cluster_2;
+  temp_cluster_2.et = cluster_2.et + electron_2.et;
+  temp_cluster_2.phi = weighted_avg_phi_c_p(cluster_2, electron_2);
+  temp_cluster_2.eta = weighted_avg_eta_c_p(cluster_2, electron_2);
 
   // Requirement that it is a photon is checking if E/H is high for the cluster
   if(temp_cluster_1.is_photon > 0 && temp_cluster_2.is_photon > 0
@@ -426,8 +448,8 @@ void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cl
      && strip.et < temp_cluster_1.et + temp_cluster_2.et){
     
     strip.et  = temp_cluster_1.et + temp_cluster_2.et;
-    strip.eta = weighted_avg_eta(temp_cluster_1, temp_cluster_2);
-    strip.phi = weighted_avg_phi(temp_cluster_1, temp_cluster_2);
+    strip.eta = weighted_avg_eta_c_c(temp_cluster_1, temp_cluster_2);
+    strip.phi = weighted_avg_phi_c_c(temp_cluster_1, temp_cluster_2);
   }
 }
 
@@ -491,9 +513,8 @@ ap_uint<10> delta_r_cluster(cluster_t cluster1, cluster_t cluster2){
   return(delta_eta + delta_phi);
 }
 
-
 //fix me - check if enough bits are allocated during operations
-ap_uint<7> weighted_avg_eta(strip_t strip1, strip_t strip2){
+ap_uint<7> weighted_avg_eta_t_s(pftau_t strip1, strip_t strip2){
   ap_uint<12> eta1 = strip1.eta*strip1.et;
   ap_uint<12> eta2 = strip2.eta*strip2.et;
   ap_uint<12> sum_et = strip1.et + strip2.et;
@@ -502,7 +523,7 @@ ap_uint<7> weighted_avg_eta(strip_t strip1, strip_t strip2){
   return output_eta;
 }
 
-ap_uint<7> weighted_avg_phi(strip_t strip1, strip_t strip2){
+ap_uint<8> weighted_avg_phi_t_s(pftau_t strip1, strip_t strip2){
   ap_uint<12> phi1 = strip1.phi*strip1.et;
   ap_uint<12> phi2 = strip2.phi*strip2.et;
   ap_uint<12> sum_et = strip1.et + strip2.et;
@@ -511,7 +532,26 @@ ap_uint<7> weighted_avg_phi(strip_t strip1, strip_t strip2){
   return output_phi;
 }
 
-ap_uint<7> weighted_avg_eta(cluster_t cluster1, cluster_t cluster2){
+//fix me - check if enough bits are allocated during operations
+ap_uint<7> weighted_avg_eta_s_s(strip_t strip1, strip_t strip2){
+  ap_uint<12> eta1 = strip1.eta*strip1.et;
+  ap_uint<12> eta2 = strip2.eta*strip2.et;
+  ap_uint<12> sum_et = strip1.et + strip2.et;
+  ap_uint<7> output_eta = (eta1 + eta2)/sum_et;
+
+  return output_eta;
+}
+
+ap_uint<7> weighted_avg_phi_s_s(strip_t strip1, strip_t strip2){
+  ap_uint<12> phi1 = strip1.phi*strip1.et;
+  ap_uint<12> phi2 = strip2.phi*strip2.et;
+  ap_uint<12> sum_et = strip1.et + strip2.et;
+  ap_uint<7> output_phi = (phi1 + phi2)/sum_et;
+
+  return output_phi;
+}
+
+ap_uint<7> weighted_avg_eta_c_p(cluster_t cluster1, pf_charged_t cluster2){
   ap_uint<12> eta1 = cluster1.eta*cluster1.et;
   ap_uint<12> eta2 = cluster2.eta*cluster2.et;
   ap_uint<12> sum_et = cluster1.et + cluster2.et;
@@ -520,7 +560,7 @@ ap_uint<7> weighted_avg_eta(cluster_t cluster1, cluster_t cluster2){
   return output_eta;
 }
 
-ap_uint<8> weighted_avg_phi(cluster_t cluster1, cluster_t cluster2){
+ap_uint<8> weighted_avg_phi_c_p(cluster_t cluster1, pf_charged_t cluster2){
   ap_uint<12> phi1 = cluster1.phi*cluster1.et;
   ap_uint<12> phi2 = cluster2.phi*cluster2.et;
   ap_uint<12> sum_et = cluster1.et + cluster2.et;
@@ -529,7 +569,25 @@ ap_uint<8> weighted_avg_phi(cluster_t cluster1, cluster_t cluster2){
   return output_phi;
 }
 
-ap_uint<7> weighted_avg_eta(pf_charged_t strip1, strip_t strip2){
+ap_uint<7> weighted_avg_eta_c_c(cluster_t cluster1, cluster_t cluster2){
+  ap_uint<12> eta1 = cluster1.eta*cluster1.et;
+  ap_uint<12> eta2 = cluster2.eta*cluster2.et;
+  ap_uint<12> sum_et = cluster1.et + cluster2.et;
+  ap_uint<7> output_eta = (eta1 + eta2)/sum_et;
+
+  return output_eta;
+}
+
+ap_uint<8> weighted_avg_phi_c_c(cluster_t cluster1, cluster_t cluster2){
+  ap_uint<12> phi1 = cluster1.phi*cluster1.et;
+  ap_uint<12> phi2 = cluster2.phi*cluster2.et;
+  ap_uint<12> sum_et = cluster1.et + cluster2.et;
+  ap_uint<7> output_phi = (phi1 + phi2)/sum_et;
+
+  return output_phi;
+}
+
+ap_uint<7> weighted_avg_eta_p_s(pf_charged_t strip1, strip_t strip2){
   ap_uint<12> eta1 = strip1.eta*strip1.et;
   ap_uint<12> eta2 = strip2.eta*strip2.et;
   ap_uint<12> sum_et = strip1.et + strip2.et;
@@ -538,7 +596,7 @@ ap_uint<7> weighted_avg_eta(pf_charged_t strip1, strip_t strip2){
   return output_eta;
 }
 
-ap_uint<8> weighted_avg_phi(pf_charged_t strip1, strip_t strip2){
+ap_uint<8> weighted_avg_phi_p_s(pf_charged_t strip1, strip_t strip2){
   ap_uint<12> phi1 = strip1.phi*strip1.et;
   ap_uint<12> phi2 = strip2.phi*strip2.et;
   ap_uint<12> sum_et = strip1.et + strip2.et;
@@ -547,7 +605,7 @@ ap_uint<8> weighted_avg_phi(pf_charged_t strip1, strip_t strip2){
   return output_phi;
 }
 
-ap_uint<7> weighted_avg_eta(cluster_t cluster1, strip_t strip2){
+ap_uint<7> weighted_avg_eta_c_s(cluster_t cluster1, strip_t strip2){
   ap_uint<12> eta1 = cluster1.eta*cluster1.et;
   ap_uint<12> eta2 = strip2.eta*strip2.et;
   ap_uint<12> sum_et = cluster1.et + strip2.et;
@@ -556,7 +614,7 @@ ap_uint<7> weighted_avg_eta(cluster_t cluster1, strip_t strip2){
   return output_eta;
 }
 
-ap_uint<8> weighted_avg_phi(cluster_t cluster1, strip_t strip2){
+ap_uint<8> weighted_avg_phi_c_s(cluster_t cluster1, strip_t strip2){
   ap_uint<12> phi1 = cluster1.phi*cluster1.et;
   ap_uint<12> phi2 = strip2.phi*strip2.et;
   ap_uint<12> sum_et = cluster1.et + strip2.et;
@@ -565,7 +623,7 @@ ap_uint<8> weighted_avg_phi(cluster_t cluster1, strip_t strip2){
   return output_phi;
 }
 
-ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
+ap_uint<7> weighted_avg_eta_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
   ap_uint<12> eta1 = pf1.eta*pf1.et;
   ap_uint<12> eta2 = pf2.eta*pf2.et;
   ap_uint<12> eta3 = pf3.eta*pf3.et;
@@ -575,7 +633,7 @@ ap_uint<7> weighted_avg_eta(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3
   return output_eta;
 }
 
-ap_uint<7> weighted_avg_phi(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
+ap_uint<7> weighted_avg_phi_p_p_p(pf_charged_t pf1, pf_charged_t pf2, pf_charged_t pf3){
   ap_uint<12> phi1 = pf1.phi*pf1.et;
   ap_uint<12> phi2 = pf2.phi*pf2.et;
   ap_uint<12> phi3 = pf3.phi*pf3.et;
@@ -610,19 +668,19 @@ ap_uint<8> delta_r_pf_charged(pf_charged_t pf_1, pf_charged_t pf_2){
 ap_uint<8> ieta_diff(pf_charged_t cand_1, pf_charged_t cand_2){
   //fix me for eta side
   if(cand_1.eta > cand_2.eta){
-    return(cand_1.eta - cand_2.eta)
+    return(cand_1.eta - cand_2.eta);
   }
-  else
-    return(cand_2.eta - cand_1.eta)
+
+   return(cand_2.eta - cand_1.eta);
 
 }
 
 ap_uint<8> iphi_diff(pf_charged_t cand_1, pf_charged_t cand_2){
   //fix me for phi side
   if(cand_1.phi > cand_2.phi){
-    return(cand_1.phi - cand_2.phi)
+    return(cand_1.phi - cand_2.phi);
   }
-  else
-    return(cand_2.phi - cand_1.phi)
+
+    return(cand_2.phi - cand_1.phi);
 
 }
