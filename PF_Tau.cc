@@ -20,7 +20,7 @@ void file_read_in(
 	pf_match_alg( central_clusters, central_tracks, charged_cands, algo_config);
 
 	////////////////////Three Prong Tau Algorithm////////////////////
-	pftau_t tau_cands[12];
+	pftau_t tau_cands[N_TAUS];
 
 	// Tau_alg Takes in charged cands, central (neutral) clusters, the algorithm configuration 
 	// Returns the tau cands
@@ -148,16 +148,17 @@ ap_uint<12> find_the_index_crys( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint<8>
 }
 
 
-cluster_t find_matching_cluster(cluster_t neutral_clusters[N_CLUSTERS], pf_charged_t pfcharged){
+cluster_t find_matched_cluster(cluster_t neutral_clusters[N_CLUSTERS], ap_uint<8> eta_1, ap_uint<8> phi_1){
 #pragma HLS ARRAY_PARTITION variable=neutral_clusters complete dim=0
-
+	cluster_t cluster_to_return;
+	cluster_to_return = neutral_clusters[0];
   for(ap_uint<9> i =0; i<N_CLUSTERS; i++){
 #pragma HLS UNROLL    
-    if(delta_r_c_p(neutral_clusters[i], pfcharged)<4)
-      return neutral_clusters[i];
+    if(Delta_R(neutral_clusters[i].eta, neutral_clusters[i].phi, eta_1, phi_1, 4))
+    	cluster_to_return = neutral_clusters[i];
   }
   //fix me
-  return neutral_clusters[0];
+  return cluster_to_return;
 
 }
 
@@ -199,15 +200,18 @@ ap_uint<12> find_index_crys_offset( ap_uint<7> eta, ap_uint<1> eta_side, ap_uint
 		return index;
 }
 //add clusters to void
-void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]){
+void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands_O[N_TAUS]){
 #pragma HLS ARRAY_PARTITION variable=neutral_clusters complete dim=0
 #pragma HLS ARRAY_PARTITION variable=pf_charged complete dim=0
-#pragma HLS ARRAY_PARTITION variable=tau_cands complete dim=0
+#pragma HLS ARRAY_PARTITION variable=tau_cands_O complete dim=0
 #pragma HLS PIPELINE II=6
+
+  pftau_t tau_cands[N_TAUS];
+#pragma HLS ARRAY_PARTITION variable=tau_cands complete dim=0
 
         ap_uint<4> n_taus = 0;
 
-        pf_charged_t electron_grid[12][5][5];
+        pf_charged_t electron_grid[N_TAUS][5][5];
 #pragma HLS ARRAY_PARTITION variable=electron_grid complete dim=0
 
         for (unsigned int idx = 0; idx < N_TRACKS; idx++)	//note, tracks are already sorted by PT
@@ -221,69 +225,73 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 	  //pf_charged_t electron_grid_temp[5][5];
 	  uint32_t iso_sum_charged_hadron = 0;
 
-	  if(seed_hadron.et < algo_config.one_prong_seed || seed_hadron.is_charged_hadron < 0)
-	    continue;
-	  
-	  // Minimal requirements for building a tau have been met, now we begin construction
-	  // (Any additional minimal requirements for building tau should go above.)
-	  prong_cands[0] = seed_hadron;
-	  
-	  // Now that we have 1 prong Loop through the remaining pf_charged objects to find more prongs
-	  for (int jdx = 0; jdx < N_TRACKS; jdx++)
-	    {
+	  if(seed_hadron.et > algo_config.one_prong_seed && seed_hadron.is_charged_hadron > 0){
+	    
+	    // Minimal requirements for building a tau have been met, now we begin construction
+	    // (Any additional minimal requirements for building tau should go above.)
+	    prong_cands[0] = seed_hadron;
+	    
+	    // Now that we have 1 prong Loop through the remaining pf_charged objects to find more prongs
+	    for (int jdx = 0; jdx < N_TRACKS; jdx++)
+	      {
 #pragma HLS UNROLL
-
-	      if(idx <= jdx)
-		continue;
-
-	      ap_uint<8> seed_cand_dr = delta_r_pf_charged(pf_charged[jdx], seed_hadron);
-	      //Build the remaining prongs, but only if the next track is a charged hadron
-	      if(pf_charged[jdx].is_charged_hadron > 0){
-
-	    	  find_tau_prongs( n_prongs_found,  prong_cands,  pf_charged[jdx],  seed_hadron, seed_cand_dr, iso_sum_charged_hadron, algo_config);
-
-	      }// pf_charged[jdx] is NOT a charged_hadron
-	      else if(pf_charged[jdx].is_electron > 0){
-
-	    	  if(seed_cand_dr < algo_config.isolation_delta_r){
-		    build_electron_grid(pf_charged[jdx], seed_cand_dr, seed_hadron, electron_grid,  n_taus);
-	    	  }
-	      } 
-	    }// Finished looking through all the charged pf candidates
-
-	  //Create the 1 prong taus
-	  if(n_prongs_found < 3 && n_taus < 12){
-	    if(seed_hadron.et > algo_config.one_prong_seed){
-
-	      tau_cands[n_taus].et          = seed_hadron.et;
-	      tau_cands[n_taus].eta         = seed_hadron.eta;
-	      tau_cands[n_taus].phi         = seed_hadron.phi;
-	      // prong_cands[2] should be 0 if only 1 prong, check me
-	      tau_cands[n_taus].iso_charged = iso_sum_charged_hadron + prong_cands[2].et; 
-	      tau_cands[n_taus].tau_type    = 0;
-	      n_taus++;
-	    }
+		
+		if(jdx < idx){
+		
+		  ap_uint<8> seed_cand_dr = delta_r_pf_charged(pf_charged[jdx], seed_hadron);
+		  //Build the remaining prongs, but only if the next track is a charged hadron
+		  if(pf_charged[jdx].is_charged_hadron > 0){
+		    
+		    find_tau_prongs( n_prongs_found,  prong_cands,  pf_charged[jdx],  seed_hadron, seed_cand_dr, iso_sum_charged_hadron, algo_config);
+		    
+		  }// pf_charged[jdx] is NOT a charged_hadron
+		  else if(pf_charged[jdx].is_electron > 0){
+		    
+		    if(seed_cand_dr < algo_config.isolation_delta_r){
+		      build_electron_grid(pf_charged[jdx], seed_cand_dr, seed_hadron, electron_grid,  n_taus);
+		    }
+		  } 
+		}// Finished looking through all the charged pf candidates
+	      }
+	    //Create the 1 prong taus
+	    if(n_prongs_found < 3 && n_taus < N_TAUS){
+	      if(seed_hadron.et > algo_config.one_prong_seed){
+		
+		tau_cands[n_taus].et          = seed_hadron.et;
+		tau_cands[n_taus].eta         = seed_hadron.eta;
+		tau_cands[n_taus].phi         = seed_hadron.phi;
+		// prong_cands[2] should be 0 if only 1 prong, check me
+		tau_cands[n_taus].iso_charged = iso_sum_charged_hadron + prong_cands[2].et; 
+		tau_cands[n_taus].tau_type    = 0;
+		n_taus++;
+	      }
+	    }	    //Create the 3 prong taus
+	    else if(n_prongs_found == 3 && n_taus < N_TAUS)
+	      if(seed_hadron.et > algo_config.three_prong_seed){
+		tau_cands[n_taus].et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
+		tau_cands[n_taus].eta         = weighted_avg_eta_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
+		tau_cands[n_taus].phi         = weighted_avg_phi_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
+		tau_cands[n_taus].iso_charged = iso_sum_charged_hadron;
+		tau_cands[n_taus].tau_type    = 10;
+		n_taus++;
+	      }
+	    
 	  }
-
-	  //Create the 3 prong taus
-	  if(n_prongs_found == 3 && n_taus < 12)
-	    if(seed_hadron.et > algo_config.three_prong_seed){
-	      tau_cands[n_taus].et          = prong_cands[0].et + prong_cands[1].et + prong_cands[2].et;
-	      tau_cands[n_taus].eta         = weighted_avg_eta_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
-	      tau_cands[n_taus].phi         = weighted_avg_phi_p_p_p(prong_cands[0], prong_cands[1], prong_cands[2]);
-	      tau_cands[n_taus].iso_charged = iso_sum_charged_hadron;
-	      tau_cands[n_taus].tau_type    = 10;
-	      n_taus++;
-	    }
+	  //Process the strips in a separate module
 	}
-	//Process the strips in a separate module
 
-	for(ap_uint<4> i = 0; i < 12 ; i++){
+	for(ap_uint<4> i = 0; i < N_TAUS ; i++){
 #pragma HLS UNROLL
 	  if(tau_cands[i].tau_type == 0){
 		  strip_alg(tau_cands[i], electron_grid[i], neutral_clusters, algo_config);}
 	  else{
 		  tau_cands[i].tau_type = 0;}
+	}
+	
+	for(ap_uint<4> i = 0; i < N_TAUS ; i++){
+#pragma HLS UNROLL
+	  tau_cands_O[i] = tau_cands[i];
+
 	}
 	//FINISH ISOLATION CALCULATION
 
@@ -317,7 +325,7 @@ void find_tau_prongs(  ap_uint<3> &n_prongs_found, pf_charged_t prong_cands[3], 
 
 }
 // This needs the ieta and iphi from deltar function as an input
-void build_electron_grid(pf_charged_t electron_cand, ap_uint<8> seed_cand_dr, pf_charged_t seed_hadron, pf_charged_t electron_grid[12][5][5], ap_uint<4> n_taus){
+void build_electron_grid(pf_charged_t electron_cand, ap_uint<8> seed_cand_dr, pf_charged_t seed_hadron, pf_charged_t electron_grid[N_TAUS][5][5], ap_uint<4> n_taus){
 #pragma HLS ARRAY_PARTITION variable=electron_grid complete dim=0
 
   ap_uint<7> index_eta = seed_cand_dr>>2;
@@ -361,7 +369,9 @@ void strip_alg(pftau_t &tau_cand, pf_charged_t electron_grid[5][5],  cluster_t n
 #pragma HLS UNROLL
           for(ap_uint<3> j = 0; j<5; j++){
 #pragma HLS UNROLL
-	    neutral_cluster_grid[i][j] = find_matching_cluster(neutral_clusters, electron_grid[i][j]);
+	    ap_uint<7> grid_eta = tau_eta + i>>2;
+	    ap_uint<7> grid_phi = tau_phi + j>>2;
+        	  neutral_cluster_grid[i][j] = find_matched_cluster(neutral_clusters, grid_eta, grid_phi);
 	  }
     }
 

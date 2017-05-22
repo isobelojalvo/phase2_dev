@@ -5,8 +5,9 @@
 #include <ap_int.h>
 
 //define number of tracks
-#define N_TRACKS (50)
-#define N_CLUSTERS (250)
+#define N_TRACKS (10)
+#define N_CLUSTERS (100)
+#define N_TAUS (3)
 
 typedef struct
 {
@@ -43,10 +44,10 @@ typedef struct
 
 typedef struct
 {
-	ap_uint<11> et;
-	ap_uint<1> eta_side;
-	ap_uint<7> eta;
-	ap_uint<8> phi;
+		ap_uint<11> et;
+		ap_uint<1> eta_side;
+		ap_uint<7> eta;
+		ap_uint<8> phi;
         ap_uint<1> is_electron;
         ap_uint<1> is_charged_hadron;
         ap_uint<1> is_muon;
@@ -54,10 +55,10 @@ typedef struct
 
 typedef struct
 {
-	ap_uint<11> et;
-	ap_uint<1> eta_side;
-	ap_uint<7> eta;
-	ap_uint<8> phi;
+		ap_uint<11> et;
+		ap_uint<1> eta_side;
+		ap_uint<7> eta;
+		ap_uint<8> phi;
         ap_uint<4> tau_type;
         ap_uint<12> iso_charged;
 
@@ -87,7 +88,7 @@ typedef struct{
 typedef struct{
 	ap_uint<14> sum_tracks;
 	ap_uint<14> three_prong_tau_et;
-	pftau_t taus[12];
+	pftau_t taus[N_TAUS];
 } algo_outputs_t;
 
 void file_read_in(track_t tracks[N_TRACKS],
@@ -159,10 +160,10 @@ void check_pf_cand(pf_charged_t &pf_charged, cluster_t &central_cluster, algo_co
 // Tau_alg Takes in charged cands, central (neutral) clusters, the algorithm configuration 
 // Returns the tau cands
 
-void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
+void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[N_TAUS]);
 
-//void build_electron_grid(pf_charged_t electron_cand, pf_charged_t seed_hadron, pf_charged_t electron_grid[12][5][5], ap_uint<4> n_taus);
-void build_electron_grid(pf_charged_t electron_cand, ap_uint<8> seed_cand_dr, pf_charged_t seed_hadron, pf_charged_t electron_grid[12][5][5], ap_uint<4> n_taus);
+
+void build_electron_grid(pf_charged_t electron_cand, ap_uint<8> seed_cand_dr, pf_charged_t seed_hadron, pf_charged_t electron_grid[N_TAUS][5][5], ap_uint<4> n_taus);
 void find_tau_prongs(ap_uint<3> &n_prongs_found, pf_charged_t prong_cands[3], pf_charged_t pf_charged_hadron_signal_cand, pf_charged_t seed_hadron, ap_uint<8> seed_cand_dr,ap_uint<12> iso_sum_charged_hadron, algo_config_t algo_config);
 
 #endif
