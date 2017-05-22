@@ -6,7 +6,7 @@
 
 //define number of tracks
 #define N_TRACKS (50)
-#define N_CLUSTERS (500)
+#define N_CLUSTERS (250)
 
 typedef struct
 {
@@ -14,6 +14,7 @@ typedef struct
 	ap_uint<1> eta_side;
 	ap_uint<7> eta;
 	ap_uint<8> phi;
+
 } track_t;
 
 typedef struct
@@ -26,6 +27,7 @@ typedef struct
 	ap_uint<8> HoE;
     ap_uint<1> is_photon;
     ap_uint<1> is_neutral_hadron;
+
 } cluster_t;
 
 
@@ -143,17 +145,24 @@ ap_uint<10> delta_r_strip(strip_t strip1, strip_t strip2);
 
 ap_uint<10> delta_r_cluster(cluster_t cluster1, cluster_t cluster2);
 
-void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cluster_2, pf_charged_t electron_2, strip_t strip, algo_config_t algo_config);
+ap_uint<8> delta_r_c_p(cluster_t pf_1, pf_charged_t pf_2);
 
-void strip_alg(pftau_t tau_cand, pf_charged_t electron_grid[5][5], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config);
+void merge_strip_algo(cluster_t cluster_1, pf_charged_t electron_1, cluster_t cluster_2, pf_charged_t electron_2, strip_t &strip, algo_config_t algo_config);
+
+void strip_alg(pftau_t &tau_cand, pf_charged_t electron_grid[5][5], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config);
 
 void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_tau_cand[3], algo_config_t algo_config);
 
 void pf_match_alg(cluster_t central_clusters[N_CLUSTERS], track_t central_tracks[N_TRACKS] , pf_charged_t charged_cands[N_TRACKS],  algo_config_t algo_config);
 
+void check_pf_cand(pf_charged_t &pf_charged, cluster_t &central_cluster, algo_config_t algo_config);
 // Tau_alg Takes in charged cands, central (neutral) clusters, the algorithm configuration 
 // Returns the tau cands
 
 void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLUSTERS], algo_config_t algo_config, pftau_t tau_cands[12]);
+
+//void build_electron_grid(pf_charged_t electron_cand, pf_charged_t seed_hadron, pf_charged_t electron_grid[12][5][5], ap_uint<4> n_taus);
+void build_electron_grid(pf_charged_t electron_cand, ap_uint<8> seed_cand_dr, pf_charged_t seed_hadron, pf_charged_t electron_grid[12][5][5], ap_uint<4> n_taus);
+void find_tau_prongs(ap_uint<3> &n_prongs_found, pf_charged_t prong_cands[3], pf_charged_t pf_charged_hadron_signal_cand, pf_charged_t seed_hadron, ap_uint<8> seed_cand_dr,ap_uint<12> iso_sum_charged_hadron, algo_config_t algo_config);
 
 #endif
