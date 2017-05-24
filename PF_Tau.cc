@@ -441,7 +441,7 @@ void tau_three_prong_alg(track_t central_tracks[N_TRACKS], track_t three_prong_t
 		int n_found_tracks = 0;
 		track_t seedtrack = central_tracks[idx];
 
-		if(seedtrack.et < algo_config.three_prong_seed) // 0x46 corresponds to a 7 GeV seed. Follow ales's config example in UCTSummary
+		if(seedtrack.et < algo_config.three_prong_seed)
 		  continue;
 
 		three_prong_tau_cand[0] = seedtrack;
