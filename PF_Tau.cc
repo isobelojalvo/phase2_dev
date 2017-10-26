@@ -11,7 +11,7 @@ void file_read_in(
 
 	ap_uint<14> et_total_tmp = 0;
 
-#pragma HLS PIPELINE II=6
+#pragma HLS PIPELINE II=8
 
 	pf_charged_t charged_cands[N_TRACKS];
 
@@ -204,7 +204,7 @@ void tau_alg(pf_charged_t pf_charged[N_TRACKS], cluster_t neutral_clusters[N_CLU
 #pragma HLS ARRAY_PARTITION variable=neutral_clusters complete dim=0
 #pragma HLS ARRAY_PARTITION variable=pf_charged complete dim=0
 #pragma HLS ARRAY_PARTITION variable=tau_cands_O complete dim=0
-#pragma HLS PIPELINE II=6
+#pragma HLS PIPELINE II=8
 
   pftau_t tau_cands[N_TAUS];
 #pragma HLS ARRAY_PARTITION variable=tau_cands complete dim=0
@@ -355,9 +355,9 @@ void strip_alg(pftau_t &tau_cand, pf_charged_t electron_grid[5][5],  cluster_t n
 #pragma HLS ARRAY_PARTITION variable=neutral_clusters complete dim=0
 //#pragma HLS PIPELINE II=6
 
-	ap_uint<7> tau_eta      = tau_cand.eta;
-    ap_uint<1> tau_eta_side = tau_cand.eta_side;
-    ap_uint<8> tau_phi      = tau_cand.phi;
+  ap_uint<7> tau_eta      = tau_cand.eta;
+  ap_uint<1> tau_eta_side = tau_cand.eta_side;
+  ap_uint<8> tau_phi      = tau_cand.phi;
 
     ap_uint<12> index[5];
 #pragma HLS ARRAY_PARTITION variable=index complete dim=0
@@ -557,10 +557,6 @@ ap_uint<10> delta_r_cluster(cluster_t cluster1, cluster_t cluster2){
 
 //fix me - check if enough bits are allocated during operations
 ap_uint<7> weighted_avg_eta_t_s(pftau_t strip1, strip_t strip2){
-  //ap_uint<12> eta1 = strip1.eta*strip1.et;
-  //ap_uint<12> eta2 = strip2.eta*strip2.et;
-  //ap_uint<12> sum_et = strip1.et + strip2.et;
-  //ap_uint<7> output_eta = (eta1 + eta2)/sum_et;
 
   ap_uint<7> output_eta = (strip1.eta + strip2.eta)>>1;
   return output_eta;

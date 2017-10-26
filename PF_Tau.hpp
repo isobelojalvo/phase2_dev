@@ -5,9 +5,9 @@
 #include <ap_int.h>
 
 //define number of tracks
-#define N_TRACKS (10)
+#define N_TRACKS (15)
 #define N_CLUSTERS (100)
-#define N_TAUS (3)
+#define N_TAUS (4)
 
 typedef struct
 {
